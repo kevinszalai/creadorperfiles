@@ -689,6 +689,88 @@ window.addEventListener('load', function(){
   }, 100);
 });
 
+// ── LOGIN ─────────────────────────────────────────────────────────────────────
+var EMAILJS_SERVICE = 'service_m8ftgar';
+var EMAILJS_TEMPLATE = 'template_b9hhx27';
+var EMAILJS_KEY = '8xIdtkF2d1xsLBM2_';
+var ALLOWED_DOMAIN = 'universal-assistance.com';
+var currentCode = '';
+var codeExpiry = 0;
+var loggedEmail = '';
+
+emailjs.init(EMAILJS_KEY);
+
+function sendCode(){
+  var rawInput = document.getElementById('loginEmail').value.trim().toLowerCase();
+  var email = rawInput.indexOf('@') !== -1 ? rawInput : rawInput + '@universal-assistance.com';
+  loggedEmail = email;
+  var errEl = document.getElementById('emailError');
+  errEl.textContent = '';
+  var PERSONAL = 'kevinszalai@hotmail.com';
+  if(email.indexOf('@'+ALLOWED_DOMAIN) === -1 && email !== PERSONAL){
+    errEl.textContent = 'Ingresá tu email corporativo @universal-assistance.com';
+    document.getElementById('loginEmail').style.borderColor = '#E8196E';
+    setTimeout(function(){ document.getElementById('loginEmail').style.borderColor=''; }, 3000);
+    return;
+  }
+  var btn = document.getElementById('sendCodeBtn');
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  currentCode = Math.floor(100000 + Math.random() * 900000).toString();
+  codeExpiry = Date.now() + 10 * 60 * 1000;
+  var namePart = email.split('@')[0].split('.')[0];
+  var firstName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+  emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
+    email: email, passcode: currentCode, name: firstName
+  }).then(function(){
+    document.getElementById('stepEmail').style.display = 'none';
+    document.getElementById('stepCode').style.display = 'block';
+    document.getElementById('codeEmailDisplay').textContent = email;
+    var boxes = document.querySelectorAll('.code-box');
+    for(var b=0;b<boxes.length;b++) boxes[b].value='';
+    boxes[0].focus();
+    for(var bi=0;bi<boxes.length;bi++){
+      (function(box, idx, all){
+        box.addEventListener('input', function(){
+          box.value = box.value.replace(/[^0-9]/g,'');
+          if(box.value && idx < 5) all[idx+1].focus();
+        });
+        box.addEventListener('keydown', function(e){
+          if(e.key==='Backspace' && !box.value && idx > 0) all[idx-1].focus();
+        });
+      })(boxes[bi], bi, boxes);
+    }
+  }).catch(function(err){
+    errEl.textContent = 'Error al enviar. Intentá de nuevo.';
+    btn.disabled = false; btn.textContent = 'Ingresar';
+  });
+}
+
+function verifyCode(){
+  var boxes = document.querySelectorAll('.code-box');
+  var entered = '';
+  for(var i=0;i<boxes.length;i++) entered += boxes[i].value;
+  var errEl = document.getElementById('codeError');
+  errEl.textContent = '';
+  if(entered.length < 6){ errEl.textContent = 'Ingresá los 6 dígitos.'; return; }
+  if(Date.now() > codeExpiry){ errEl.textContent = 'El código expiró.'; return; }
+  if(entered !== currentCode){ errEl.textContent = 'Código incorrecto.'; return; }
+  document.getElementById('loginOverlay').style.display = 'none';
+  var expiry = Date.now() + 365 * 24 * 60 * 60 * 1000;
+  localStorage.setItem('ua_session', JSON.stringify({email: loggedEmail, expiry: expiry}));
+  var name = loggedEmail.split('@')[0].split('.')[0];
+  name = name.charAt(0).toUpperCase() + name.slice(1);
+  showToast('Bienvenido, ' + name + '!');
+}
+
+function resendCode(){ sendCode(); }
+
+function backToEmail(){
+  document.getElementById('stepCode').style.display = 'none';
+  document.getElementById('stepEmail').style.display = 'block';
+  document.getElementById('sendCodeBtn').disabled = false;
+  document.getElementById('sendCodeBtn').textContent = 'Ingresar';
+}
+
 buildPlanNames();buildCoverageRows();buildFeatureRows();buildPasteButtons();render();
 </script>
 </body>
